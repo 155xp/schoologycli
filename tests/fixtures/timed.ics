@@ -1,0 +1,12 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Schoology//Assignments//EN
+BEGIN:VEVENT
+UID:timed-1
+SUMMARY:Biology 101: Lab Report
+DESCRIPTION:Complete the lab report.
+DTSTART:20260310T140000Z
+DTEND:20260310T150000Z
+URL:https://example.com/assignments/1
+END:VEVENT
+END:VCALENDAR

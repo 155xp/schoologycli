@@ -1,0 +1,20 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Schoology//Assignments//EN
+BEGIN:VEVENT
+UID:timed-2
+SUMMARY:Chemistry: Quiz Review
+DESCRIPTION:Review chapters 1-3.
+DTSTART:20260312T170000Z
+DTEND:20260312T173000Z
+URL:https://example.com/assignments/3
+END:VEVENT
+BEGIN:VEVENT
+UID:allday-2
+SUMMARY:World History Essay
+DESCRIPTION:Draft the first paragraph.
+DTSTART;VALUE=DATE:20260313
+DTEND;VALUE=DATE:20260314
+URL:https://example.com/assignments/4
+END:VEVENT
+END:VCALENDAR

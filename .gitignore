@@ -1,0 +1,11 @@
+__pycache__/
+.pytest_cache/
+build/
+dist/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Prevent accidental commits if a local config override is pointed at the repo.
+config.json

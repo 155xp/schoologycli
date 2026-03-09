@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "schoologycli"
+version = "0.1.0"
+description = "Minimal Schoology iCal client"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "icalendar>=5.0.13,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0,<9",
+]
+
+[project.scripts]
+schoology = "schoologycli.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

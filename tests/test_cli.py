@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 
 import pytest
 
@@ -16,6 +17,7 @@ def test_main_without_args_shows_help(capsys: pytest.CaptureFixture[str]) -> Non
     assert "available commands:" in output
     assert "setup" in output
     assert "assignments" in output
+    assert "due" in output
 
 
 def test_main_uses_sys_argv_for_setup(
@@ -122,3 +124,58 @@ def test_assignments_url_override_does_not_mutate_config(
     assert exit_code == 0
     assert output[0]["title"] == "Lab Report"
     assert json.loads(config_path.read_text(encoding="utf-8"))["ical_url"] == "https://example.com/original.ics"
+
+
+def test_due_shows_today_and_tomorrow_sections(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+    capsys: pytest.CaptureFixture[str],
+    fixture_text,
+) -> None:
+    class FakeDate:
+        @staticmethod
+        def today() -> date:
+            return date(2026, 3, 12)
+
+    monkeypatch.setenv("SCHOOLOGYCLI_CONFIG_DIR", str(tmp_path))
+    tmp_path.joinpath("config.json").write_text(
+        json.dumps({"ical_url": "https://example.com/calendar.ics"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("schoologycli.client.fetch_ical", lambda _: fixture_text("mixed.ics"))
+    monkeypatch.setattr("schoologycli.cli.date", FakeDate)
+
+    exit_code = cli.main(["due"])
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "Due Today (2026-03-12)" in output
+    assert "Chemistry - Quiz Review at 5:00 pm" in output
+    assert "Due Tomorrow (2026-03-13)" in output
+    assert "World History Essay" in output
+
+
+def test_due_shows_empty_sections_when_nothing_matches(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+    capsys: pytest.CaptureFixture[str],
+    fixture_text,
+) -> None:
+    class FakeDate:
+        @staticmethod
+        def today() -> date:
+            return date(2026, 3, 12)
+
+    monkeypatch.setenv("SCHOOLOGYCLI_CONFIG_DIR", str(tmp_path))
+    tmp_path.joinpath("config.json").write_text(
+        json.dumps({"ical_url": "https://example.com/calendar.ics"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("schoologycli.client.fetch_ical", lambda _: fixture_text("timed.ics"))
+    monkeypatch.setattr("schoologycli.cli.date", FakeDate)
+
+    exit_code = cli.main(["due"])
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert output.count("Nothing due.") == 2

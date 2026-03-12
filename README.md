@@ -54,6 +54,14 @@ Treat that file like a secret. Anyone with the URL can read your exported calend
 schoology assignments
 ```
 
+### Show what is due today and tomorrow
+
+```powershell
+schoology due
+```
+
+This prints a simple grouped view with `Due Today` and `Due Tomorrow` sections.
+
 ### Show assignments due today
 
 PowerShell:
@@ -83,6 +91,8 @@ schoology assignments --url "https://example.com/calendar.ics"
   Prompt for your iCal feed URL, validate it, and save it locally.
 - `schoology assignments`
   Print assignments as JSON.
+- `schoology due`
+  Print a grouped summary of assignments due today and tomorrow.
 - `schoology assignments --from YYYY-MM-DD --to YYYY-MM-DD`
   Filter assignments to a date range.
 - `schoology assignments --url URL`

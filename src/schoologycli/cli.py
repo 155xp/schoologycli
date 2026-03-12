@@ -4,12 +4,13 @@ import argparse
 import json
 import os
 import sys
-from datetime import date
+from datetime import date, timedelta
 
 from .client import SchoologyClient
 from .config import save_ical_url
 from .errors import SchoologyError
 from .fetch import fetch_ical, normalize_ical_url
+from .models import Assignment
 from .parse import parse_assignments
 
 
@@ -69,6 +70,7 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=(
             "Examples:\n"
             "  schoology setup\n"
+            "  schoology due\n"
             "  schoology assignments\n"
             "  schoology assignments --from 2026-03-10 --to 2026-03-12"
         ),
@@ -97,6 +99,14 @@ def build_parser() -> argparse.ArgumentParser:
     assignments_parser.add_argument("--from", dest="from_date", help="only include items on or after YYYY-MM-DD")
     assignments_parser.add_argument("--to", dest="to_date", help="only include items on or before YYYY-MM-DD")
     assignments_parser.set_defaults(handler=handle_assignments)
+
+    due_parser = subparsers.add_parser(
+        "due",
+        help="show assignments due today and tomorrow",
+        description="Fetch assignments from your saved Schoology iCal link and print what is due today and tomorrow.",
+    )
+    due_parser.add_argument("--url", help="use this iCal URL instead of the saved one")
+    due_parser.set_defaults(handler=handle_due)
     return parser
 
 
@@ -152,11 +162,45 @@ def handle_assignments(args: argparse.Namespace) -> int:
     return 0
 
 
+def handle_due(args: argparse.Namespace) -> int:
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    client = SchoologyClient(ical_url=args.url)
+    assignments = client.get_assignments(start=today, end=tomorrow)
+
+    due_today = [item for item in assignments if item.date == today]
+    due_tomorrow = [item for item in assignments if item.date == tomorrow]
+
+    print(_format_due_section("Due Today", today, due_today))
+    print()
+    print(_format_due_section("Due Tomorrow", tomorrow, due_tomorrow))
+    return 0
+
+
 def _parse_date(value: str) -> date:
     try:
         return date.fromisoformat(value)
     except ValueError as exc:
         raise SchoologyError(f"Invalid date: {value}") from exc
+
+
+def _format_due_section(title: str, target_date: date, assignments: list[Assignment]) -> str:
+    lines = [_paint(f"{title} ({target_date.isoformat()})", _Ansi.BOLD, _Ansi.CYAN)]
+    if not assignments:
+        lines.append(_paint("  Nothing due.", _Ansi.YELLOW))
+        return "\n".join(lines)
+
+    for item in assignments:
+        course = f"{item.course} - " if item.course else ""
+        suffix = f" at {_format_due_time(item)}" if not item.all_day else ""
+        lines.append(f"  - {course}{item.title}{suffix}")
+    return "\n".join(lines)
+
+
+def _format_due_time(assignment: Assignment) -> str:
+    if assignment.start is None:
+        return "all day"
+    return assignment.start.strftime("%I:%M %p").lstrip("0").lower()
 
 
 if __name__ == "__main__":

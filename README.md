@@ -62,6 +62,14 @@ schoology due
 
 This prints a simple grouped view with `Due Today` and `Due Tomorrow` sections.
 
+### Show assignments due yesterday
+
+```powershell
+schoology yesterday
+```
+
+This prints a simple `Due Yesterday` section for the previous calendar day.
+
 ### Show assignments due today
 
 PowerShell:
@@ -93,6 +101,8 @@ schoology assignments --url "https://example.com/calendar.ics"
   Print assignments as JSON.
 - `schoology due`
   Print a grouped summary of assignments due today and tomorrow.
+- `schoology yesterday`
+  Print a grouped summary of assignments due yesterday.
 - `schoology assignments --from YYYY-MM-DD --to YYYY-MM-DD`
   Filter assignments to a date range.
 - `schoology assignments --url URL`

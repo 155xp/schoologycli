@@ -71,6 +71,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Examples:\n"
             "  schoology setup\n"
             "  schoology due\n"
+            "  schoology yesterday\n"
             "  schoology assignments\n"
             "  schoology assignments --from 2026-03-10 --to 2026-03-12"
         ),
@@ -107,6 +108,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     due_parser.add_argument("--url", help="use this iCal URL instead of the saved one")
     due_parser.set_defaults(handler=handle_due)
+
+    yesterday_parser = subparsers.add_parser(
+        "yesterday",
+        help="show assignments due yesterday",
+        description="Fetch assignments from your saved Schoology iCal link and print what was due yesterday.",
+    )
+    yesterday_parser.add_argument("--url", help="use this iCal URL instead of the saved one")
+    yesterday_parser.set_defaults(handler=handle_yesterday)
     return parser
 
 
@@ -174,6 +183,15 @@ def handle_due(args: argparse.Namespace) -> int:
     print(_format_due_section("Due Today", today, due_today))
     print()
     print(_format_due_section("Due Tomorrow", tomorrow, due_tomorrow))
+    return 0
+
+
+def handle_yesterday(args: argparse.Namespace) -> int:
+    yesterday = date.today() - timedelta(days=1)
+    client = SchoologyClient(ical_url=args.url)
+    assignments = client.get_assignments(start=yesterday, end=yesterday)
+
+    print(_format_due_section("Due Yesterday", yesterday, assignments))
     return 0
 
 

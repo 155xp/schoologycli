@@ -18,7 +18,7 @@ def test_main_without_args_shows_help(capsys: pytest.CaptureFixture[str]) -> Non
     assert "setup" in output
     assert "assignments" in output
     assert "due" in output
-    assert "yesterday" in output
+    assert "show assignments due yesterday" in output
 
 
 def test_main_uses_sys_argv_for_setup(

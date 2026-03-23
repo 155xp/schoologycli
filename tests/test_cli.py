@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -129,7 +130,7 @@ def test_assignments_url_override_does_not_mutate_config(
 
 def test_assignments_rejects_reversed_date_range(
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path,
+    tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setenv("SCHOOLOGYCLI_CONFIG_DIR", str(tmp_path))

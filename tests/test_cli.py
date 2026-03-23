@@ -127,6 +127,24 @@ def test_assignments_url_override_does_not_mutate_config(
     assert json.loads(config_path.read_text(encoding="utf-8"))["ical_url"] == "https://example.com/original.ics"
 
 
+def test_assignments_rejects_reversed_date_range(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("SCHOOLOGYCLI_CONFIG_DIR", str(tmp_path))
+    tmp_path.joinpath("config.json").write_text(
+        json.dumps({"ical_url": "https://example.com/calendar.ics"}),
+        encoding="utf-8",
+    )
+
+    exit_code = cli.main(["assignments", "--from", "2026-03-13", "--to", "2026-03-12"])
+    error = capsys.readouterr().err
+
+    assert exit_code == 1
+    assert "Invalid date range" in error
+
+
 def test_due_shows_today_and_tomorrow_sections(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,

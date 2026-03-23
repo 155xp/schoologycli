@@ -6,7 +6,7 @@ import pytest
 
 from schoologycli.client import SchoologyClient
 from schoologycli.config import get_config_path, save_ical_url
-from schoologycli.errors import ConfigError, FetchError, ParseError
+from schoologycli.errors import ConfigError, FetchError, ParseError, SchoologyError
 from schoologycli.fetch import fetch_ical, normalize_ical_url
 from schoologycli.parse import parse_assignments
 
@@ -44,6 +44,14 @@ def test_client_filters_by_date(monkeypatch: pytest.MonkeyPatch, fixture_text: s
     assignments = client.get_assignments(start=date(2026, 3, 13), end=date(2026, 3, 13))
 
     assert [item.title for item in assignments] == ["World History Essay"]
+
+
+def test_client_rejects_reversed_date_range(monkeypatch: pytest.MonkeyPatch, fixture_text: str) -> None:
+    monkeypatch.setattr("schoologycli.client.fetch_ical", lambda _: fixture_text("mixed.ics"))
+    client = SchoologyClient("https://example.com/calendar.ics")
+
+    with pytest.raises(SchoologyError, match="Invalid date range"):
+        client.get_assignments(start=date(2026, 3, 13), end=date(2026, 3, 12))
 
 
 def test_parse_mixed_same_day_events_sorts_without_type_error() -> None:

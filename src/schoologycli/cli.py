@@ -251,7 +251,7 @@ def _format_assignment_list(assignments: list[Assignment]) -> str:
 
 def _format_assignment_lines(item: Assignment) -> list[str]:
     course = f"{item.course} - " if item.course else ""
-    suffix = f" at {_format_due_time(item)}" if not item.all_day else ""
+    suffix = f" - {_format_due_time(item)}"
     lines = [f"  - {course}{_format_assignment_title(item)}{suffix}"]
     description = _visible_description(item.description, item.source_url)
     if description:

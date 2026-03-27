@@ -3,8 +3,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import sys
+import textwrap
 from datetime import date, timedelta
+from urllib.parse import urlparse
 
 from .client import SchoologyClient
 from .config import save_ical_url
@@ -17,19 +20,26 @@ from .parse import parse_assignments
 class _Ansi:
     RESET = "\033[0m"
     BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
     BLUE = "\033[34m"
     CYAN = "\033[36m"
     RED = "\033[31m"
     YELLOW = "\033[33m"
 
 
-def _color_enabled(stream) -> bool:
-    if os.environ.get("NO_COLOR"):
-        return False
+def _is_tty(stream) -> bool:
     return hasattr(stream, "isatty") and stream.isatty()
 
 
-def _paint(text: str, *styles: str, stream=sys.stdout) -> str:
+def _color_enabled(stream) -> bool:
+    if os.environ.get("NO_COLOR"):
+        return False
+    return _is_tty(stream)
+
+
+def _paint(text: str, *styles: str, stream=None) -> str:
+    if stream is None:
+        stream = sys.stdout
     if not _color_enabled(stream):
         return text
     return "".join(styles) + text + _Ansi.RESET
@@ -94,11 +104,12 @@ def build_parser() -> argparse.ArgumentParser:
     assignments_parser = subparsers.add_parser(
         "assignments",
         help="show assignments",
-        description="Fetch assignments from your saved Schoology iCal link and print JSON.",
+        description="Fetch assignments from your saved Schoology iCal link.",
     )
     assignments_parser.add_argument("--url", help="use this iCal URL instead of the saved one")
     assignments_parser.add_argument("--from", dest="from_date", help="only include items on or after YYYY-MM-DD")
     assignments_parser.add_argument("--to", dest="to_date", help="only include items on or before YYYY-MM-DD")
+    assignments_parser.add_argument("--json", action="store_true", help="print JSON instead of terminal output")
     assignments_parser.set_defaults(handler=handle_assignments)
 
     due_parser = subparsers.add_parser(
@@ -167,7 +178,11 @@ def handle_assignments(args: argparse.Namespace) -> int:
     end = _parse_date(args.to_date) if args.to_date else None
     client = SchoologyClient(ical_url=args.url)
     assignments = client.get_assignments(start=start, end=end)
-    print(json.dumps([item.to_dict() for item in assignments]))
+    if args.json or not _is_tty(sys.stdout):
+        print(json.dumps([item.to_dict() for item in assignments]))
+        return 0
+
+    print(_format_assignment_list(assignments))
     return 0
 
 
@@ -209,9 +224,7 @@ def _format_due_section(title: str, target_date: date, assignments: list[Assignm
         return "\n".join(lines)
 
     for item in assignments:
-        course = f"{item.course} - " if item.course else ""
-        suffix = f" at {_format_due_time(item)}" if not item.all_day else ""
-        lines.append(f"  - {course}{item.title}{suffix}")
+        lines.extend(_format_assignment_lines(item))
     return "\n".join(lines)
 
 
@@ -219,6 +232,91 @@ def _format_due_time(assignment: Assignment) -> str:
     if assignment.start is None:
         return "all day"
     return assignment.start.strftime("%I:%M %p").lstrip("0").lower()
+
+
+def _format_assignment_list(assignments: list[Assignment]) -> str:
+    if not assignments:
+        return _paint("No assignments found.", _Ansi.YELLOW)
+
+    lines: list[str] = []
+    current_date: date | None = None
+    for item in assignments:
+        if item.date != current_date:
+            if lines:
+                lines.append("")
+            current_date = item.date
+            lines.append(_paint(item.date.isoformat(), _Ansi.BOLD, _Ansi.CYAN))
+        lines.extend(_format_assignment_lines(item))
+    return "\n".join(lines)
+
+
+def _format_assignment_lines(item: Assignment) -> list[str]:
+    course = f"{item.course} - " if item.course else ""
+    suffix = f" - {_format_due_time(item)}"
+    lines = [f"  - {course}{_format_assignment_title(item)}{suffix}"]
+    description = _visible_description(item.description, item.source_url)
+    if description:
+        lines.extend(_format_description_lines(description))
+    return lines
+
+
+def _format_assignment_title(item: Assignment) -> str:
+    title = _paint(item.title, _Ansi.UNDERLINE)
+    if item.source_url and _is_tty(sys.stdout):
+        return f"\033]8;;{item.source_url}\033\\{title}\033]8;;\033\\"
+    return title
+
+
+def _format_description_lines(description: str) -> list[str]:
+    indent = "      "
+    width = max(shutil.get_terminal_size(fallback=(100, 20)).columns - len(indent), 20)
+    lines: list[str] = []
+
+    for paragraph in description.replace("\r\n", "\n").splitlines():
+        paragraph = paragraph.strip()
+        if not paragraph:
+            continue
+        for wrapped in textwrap.wrap(paragraph, width=width) or [""]:
+            lines.append(f"{indent}{wrapped}")
+    return lines
+
+
+def _visible_description(description: str | None, source_url: str | None) -> str | None:
+    if not description:
+        return None
+
+    normalized = _strip_redundant_link_lines(description, source_url).strip()
+    if not normalized:
+        return None
+    if _is_schoology_url(normalized):
+        return None
+    return normalized
+
+
+def _strip_redundant_link_lines(description: str, source_url: str | None) -> str:
+    if not source_url:
+        return description
+
+    visible_lines: list[str] = []
+    for line in description.replace("\r\n", "\n").splitlines():
+        stripped = line.strip()
+        if stripped == source_url:
+            continue
+        normalized = stripped.removeprefix("-").strip()
+        if normalized.lower().startswith("link:"):
+            link_target = normalized[5:].strip()
+            if link_target == source_url:
+                continue
+        visible_lines.append(line)
+    return "\n".join(visible_lines)
+
+
+def _is_schoology_url(value: str) -> bool:
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or " " in value:
+        return False
+    hostname = parsed.netloc.lower()
+    return hostname == "schoology.com" or hostname.endswith(".schoology.com")
 
 
 if __name__ == "__main__":

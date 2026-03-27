@@ -38,7 +38,9 @@ def test_parse_all_day_assignment(fixture_text: str) -> None:
 
 
 def test_client_filters_by_date(monkeypatch: pytest.MonkeyPatch, fixture_text: str) -> None:
+    monkeypatch.setattr("schoologycli.client.load_cached_ical", lambda url, ttl: None)
     monkeypatch.setattr("schoologycli.client.fetch_ical", lambda _: fixture_text("mixed.ics"))
+    monkeypatch.setattr("schoologycli.client.save_cached_ical", lambda url, text: None)
     client = SchoologyClient("https://example.com/calendar.ics")
 
     assignments = client.get_assignments(start=date(2026, 3, 13), end=date(2026, 3, 13))
@@ -47,7 +49,9 @@ def test_client_filters_by_date(monkeypatch: pytest.MonkeyPatch, fixture_text: s
 
 
 def test_client_rejects_reversed_date_range(monkeypatch: pytest.MonkeyPatch, fixture_text: str) -> None:
+    monkeypatch.setattr("schoologycli.client.load_cached_ical", lambda url, ttl: None)
     monkeypatch.setattr("schoologycli.client.fetch_ical", lambda _: fixture_text("mixed.ics"))
+    monkeypatch.setattr("schoologycli.client.save_cached_ical", lambda url, text: None)
     client = SchoologyClient("https://example.com/calendar.ics")
 
     with pytest.raises(SchoologyError, match="Invalid date range"):
@@ -105,3 +109,14 @@ def test_save_config_writes_file(monkeypatch: pytest.MonkeyPatch, tmp_path) -> N
 
     assert path == get_config_path()
     assert path.exists()
+
+
+def test_client_uses_cache(monkeypatch: pytest.MonkeyPatch, fixture_text: str) -> None:
+    cached_data = {"ical_url": "https://example.com/calendar.ics", "ical_text": fixture_text("mixed.ics"), "fetched_at": 9999999999}
+    monkeypatch.setattr("schoologycli.client.load_cached_ical", lambda url, ttl: cached_data["ical_text"])
+    monkeypatch.setattr("schoologycli.client.fetch_ical", lambda _: pytest.fail("fetch_ical should not be called when cache is valid"))
+    client = SchoologyClient("https://example.com/calendar.ics")
+
+    assignments = client.get_assignments()
+
+    assert [item.title for item in assignments] == ["Quiz Review", "World History Essay"]

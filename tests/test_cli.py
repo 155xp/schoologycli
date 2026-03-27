@@ -100,7 +100,9 @@ def test_assignments_reads_stored_config(
         json.dumps({"ical_url": "https://example.com/calendar.ics"}),
         encoding="utf-8",
     )
+    monkeypatch.setattr("schoologycli.client.load_cached_ical", lambda url, ttl: None)
     monkeypatch.setattr("schoologycli.client.fetch_ical", lambda _: fixture_text("mixed.ics"))
+    monkeypatch.setattr("schoologycli.client.save_cached_ical", lambda url, text: None)
 
     exit_code = cli.main(["assignments"])
     output = json.loads(capsys.readouterr().out)
@@ -118,7 +120,9 @@ def test_assignments_url_override_does_not_mutate_config(
     config_path = tmp_path / "config.json"
     config_path.write_text(json.dumps({"ical_url": "https://example.com/original.ics"}), encoding="utf-8")
     monkeypatch.setenv("SCHOOLOGYCLI_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr("schoologycli.client.load_cached_ical", lambda url, ttl: None)
     monkeypatch.setattr("schoologycli.client.fetch_ical", lambda _: fixture_text("timed.ics"))
+    monkeypatch.setattr("schoologycli.client.save_cached_ical", lambda url, text: None)
 
     exit_code = cli.main(["assignments", "--url", "https://example.com/override.ics"])
     output = json.loads(capsys.readouterr().out)
@@ -138,6 +142,9 @@ def test_assignments_rejects_reversed_date_range(
         json.dumps({"ical_url": "https://example.com/calendar.ics"}),
         encoding="utf-8",
     )
+    monkeypatch.setattr("schoologycli.client.load_cached_ical", lambda url, ttl: None)
+    monkeypatch.setattr("schoologycli.client.fetch_ical", lambda _: "BEGIN:VCALENDAR\r\nEND:VCALENDAR")
+    monkeypatch.setattr("schoologycli.client.save_cached_ical", lambda url, text: None)
 
     exit_code = cli.main(["assignments", "--from", "2026-03-13", "--to", "2026-03-12"])
     error = capsys.readouterr().err
@@ -162,7 +169,9 @@ def test_due_shows_today_and_tomorrow_sections(
         json.dumps({"ical_url": "https://example.com/calendar.ics"}),
         encoding="utf-8",
     )
+    monkeypatch.setattr("schoologycli.client.load_cached_ical", lambda url, ttl: None)
     monkeypatch.setattr("schoologycli.client.fetch_ical", lambda _: fixture_text("mixed.ics"))
+    monkeypatch.setattr("schoologycli.client.save_cached_ical", lambda url, text: None)
     monkeypatch.setattr("schoologycli.cli.date", FakeDate)
 
     exit_code = cli.main(["due"])
@@ -170,7 +179,7 @@ def test_due_shows_today_and_tomorrow_sections(
 
     assert exit_code == 0
     assert "Due Today (2026-03-12)" in output
-    assert "Chemistry - Quiz Review at 5:00 pm" in output
+    assert "Chemistry - Quiz Review - 5:00 pm" in output
     assert "Due Tomorrow (2026-03-13)" in output
     assert "World History Essay" in output
 
@@ -191,7 +200,9 @@ def test_due_shows_empty_sections_when_nothing_matches(
         json.dumps({"ical_url": "https://example.com/calendar.ics"}),
         encoding="utf-8",
     )
+    monkeypatch.setattr("schoologycli.client.load_cached_ical", lambda url, ttl: None)
     monkeypatch.setattr("schoologycli.client.fetch_ical", lambda _: fixture_text("timed.ics"))
+    monkeypatch.setattr("schoologycli.client.save_cached_ical", lambda url, text: None)
     monkeypatch.setattr("schoologycli.cli.date", FakeDate)
 
     exit_code = cli.main(["due"])
@@ -217,7 +228,9 @@ def test_yesterday_shows_assignments_due_yesterday(
         json.dumps({"ical_url": "https://example.com/calendar.ics"}),
         encoding="utf-8",
     )
+    monkeypatch.setattr("schoologycli.client.load_cached_ical", lambda url, ttl: None)
     monkeypatch.setattr("schoologycli.client.fetch_ical", lambda _: fixture_text("mixed.ics"))
+    monkeypatch.setattr("schoologycli.client.save_cached_ical", lambda url, text: None)
     monkeypatch.setattr("schoologycli.cli.date", FakeDate)
 
     exit_code = cli.main(["yesterday"])
@@ -225,7 +238,7 @@ def test_yesterday_shows_assignments_due_yesterday(
 
     assert exit_code == 0
     assert "Due Yesterday (2026-03-12)" in output
-    assert "Chemistry - Quiz Review at 5:00 pm" in output
+    assert "Chemistry - Quiz Review - 5:00 pm" in output
     assert "World History Essay" not in output
 
 
@@ -245,7 +258,9 @@ def test_yesterday_shows_empty_section_when_nothing_matches(
         json.dumps({"ical_url": "https://example.com/calendar.ics"}),
         encoding="utf-8",
     )
+    monkeypatch.setattr("schoologycli.client.load_cached_ical", lambda url, ttl: None)
     monkeypatch.setattr("schoologycli.client.fetch_ical", lambda _: fixture_text("timed.ics"))
+    monkeypatch.setattr("schoologycli.client.save_cached_ical", lambda url, text: None)
     monkeypatch.setattr("schoologycli.cli.date", FakeDate)
 
     exit_code = cli.main(["yesterday"])

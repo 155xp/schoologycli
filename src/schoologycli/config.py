@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
 import time
@@ -11,6 +12,8 @@ from .errors import ConfigError
 APP_NAME = "schoologycli"
 CONFIG_FILE = "config.json"
 CACHE_FILE = "cache.json"
+
+logger = logging.getLogger(__name__)
 
 
 def get_config_dir() -> Path:
@@ -84,10 +87,18 @@ def load_cached_ical(ical_url: str, max_age_seconds: int) -> str | None:
 
 def save_cached_ical(ical_url: str, ical_text: str) -> None:
     config_dir = get_config_dir()
-    config_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        config_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        logger.warning("Could not create config dir %s: %s", config_dir, exc)
+        return
+
     payload = {
         "ical_url": ical_url,
         "fetched_at": int(time.time()),
         "ical_text": ical_text,
     }
-    get_cache_path().write_text(json.dumps(payload), encoding="utf-8")
+    try:
+        get_cache_path().write_text(json.dumps(payload), encoding="utf-8")
+    except OSError as exc:
+        logger.warning("Could not write cache file: %s", exc)

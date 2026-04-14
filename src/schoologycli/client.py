@@ -22,14 +22,16 @@ class SchoologyClient:
         start: date | None = None,
         end: date | None = None,
     ) -> list[Assignment]:
+        # Validate date range BEFORE any I/O (network / cache)
+        if start is not None and end is not None and start > end:
+            raise SchoologyError("Invalid date range: `from` date must be on or before `to` date.")
+
         ical_text = load_cached_ical(self.ical_url, self.cache_ttl_seconds)
         if ical_text is None:
             ical_text = fetch_ical(self.ical_url)
             save_cached_ical(self.ical_url, ical_text)
 
         assignments = parse_assignments(ical_text)
-        if start is not None and end is not None and start > end:
-            raise SchoologyError("Invalid date range: `from` date must be on or before `to` date.")
         if start is not None:
             assignments = [item for item in assignments if item.date >= start]
         if end is not None:

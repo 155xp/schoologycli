@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
 import textwrap
@@ -38,8 +39,7 @@ def _color_enabled(stream) -> bool:
 
 
 def _paint(text: str, *styles: str, stream=None) -> str:
-    if stream is None:
-        stream = sys.stdout
+    stream = sys.stdout if stream is None else stream
     if not _color_enabled(stream):
         return text
     return "".join(styles) + text + _Ansi.RESET
@@ -240,7 +240,7 @@ def _format_assignment_list(assignments: list[Assignment]) -> str:
 
     lines: list[str] = []
     current_date: date | None = None
-    for item in assignments:
+    for item in sorted(assignments, key=lambda a: a.date):
         if item.date != current_date:
             if lines:
                 lines.append("")
@@ -260,10 +260,21 @@ def _format_assignment_lines(item: Assignment) -> list[str]:
     return lines
 
 
+def _sanitize_osc8_url(url: str) -> str:
+    """Remove OSC-8 / ANSI control characters from a URL embedded in terminal link.
+
+    OSC-8 hyperlinks use the format: ESC ] 8 ; params ST (body) ESC ] 8 ; ST
+    A malicious URL could inject these sequences to manipulate terminal output.
+    """
+    # Strip any existing ANSI/osc-8 escape sequences and most other ANSI codes
+    return re.sub(r"\x1b\[[^m]*m|\x1b\][^;\x07]*;[^\x07]*\x07|\x1b\\[8;[^;]*;[^\x07]*\x07", "", url)
+
+
 def _format_assignment_title(item: Assignment) -> str:
     title = _paint(item.title, _Ansi.UNDERLINE)
     if item.source_url and _is_tty(sys.stdout):
-        return f"\033]8;;{item.source_url}\033\\{title}\033]8;;\033\\"
+        safe_url = _sanitize_osc8_url(item.source_url)
+        return f"\033]8;;{safe_url}\033\\{title}\033]8;;\033\\"
     return title
 
 
@@ -315,7 +326,9 @@ def _is_schoology_url(value: str) -> bool:
     parsed = urlparse(value)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc or " " in value:
         return False
-    hostname = parsed.netloc.lower()
+    # Use hostname (excludes port) instead of netloc to avoid false positives
+    # on URLs like https://schoology.com:8080/path
+    hostname = parsed.hostname.lower() if parsed.hostname else ""
     return hostname == "schoology.com" or hostname.endswith(".schoology.com")
 
 
